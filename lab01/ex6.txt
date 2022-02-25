@@ -1,0 +1,7 @@
+Y0 = A2 v A1 v A0
+Y1 = A2 v A1
+Y2 = A2 v A1 & A0
+Y3 = A2
+Y4 = A2 & A1 v A2 & A0
+Y5 = A2 & A1
+Y6 = A2 & A1 & A0
