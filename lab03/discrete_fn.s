@@ -111,10 +111,10 @@ main:
 f:
     # FIXME
     # YOUR CODE GOES HERE!
-    addi a0, a0, 1      # Index is a0 + 3
+    addi a0, a0, 1      # Index is a0 + 1
     slli a0, a0, 2      # Offset is index * 4
     add a0, a1, a0      # Address of value is a1 + offset
-    lw a0, 0(a0)
+    lw a0, 0(a0)        # Get element
     jr ra               # Всегда вызывайте jr ra для выхода из функции!
 
 # печатает одно целое число

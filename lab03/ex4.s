@@ -54,27 +54,13 @@ iterative:
         jr ra
     
 recursive:
-	mod_rec:
-		addi    sp, sp, -16
-        sw      ra, 12(sp)                      
-        sw      s0, 8(sp)                      
-        addi    s0, sp, 16
-        sw      a0, -12(s0)
-        sw      a1, -16(s0)
-        lw      a1, -12(s0)
-        lw      a0, -16(s0)
-        bge     a0, a1, flag2
-        j       flag1
-	flag1:
-        lw      a0, -12(s0)
-        lw      a1, -16(s0)
-        sub     a0, a0, a1
-        call    mod_rec
-        sw      a0, -12(s0)
-        j       flag2
-	flag2:
-        lw      a0, -12(s0)
-        lw      ra, 12(sp)                     
-        lw      s0, 8(sp)                       
-        addi    sp, sp, 16
-        ret
+    addi sp, sp, -4 # more stack space for return address
+    sw ra, 0(sp) # store return address
+    blt a0, a1, return # if n <= m return 
+    sub a0, a0, a1 # n = n - m
+    jal recursive # call recursive and go back (r0 contains n % m)
+    
+    return:
+    lw ra, 0(sp) # restore return address
+    addi sp, sp, 4 # restore stack space
+    jr ra

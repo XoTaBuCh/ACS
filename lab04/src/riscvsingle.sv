@@ -14,7 +14,7 @@
 // User-level Instruction Set Architecture V2.2 (May 7, 2017)
 // Implements a subset of the base integer instructions:
 //    lw, sw
-//    add, sub, and, or, slt, 
+//    add, sub, and, or, slt, //blt
 //    addi, andi, ori, slti
 //    beq
 //    jal
@@ -50,7 +50,7 @@
 //   Instr[11:7]  = imm[4:0]  (offset[4:0])
 //   Instr[6:0]   = opcode
 // B-Type Instruction
-//   beq rs1, rs2, imm (PCTarget = PC + (signed imm x 2))
+//   beq rs1, rs2, imm (PCTarget = PC + (signed imm x 2))  //blt
 //   Instr[31:25] = imm[12], imm[10:5]
 //   Instr[24:20] = rs2
 //   Instr[19:15] = rs1
@@ -74,9 +74,11 @@
 //   ori          0010011   110       immediate
 //   slti         0010011   010       immediate
 //   beq          1100011   000       immediate
-//   lw	          0000011   010       immediate
+//   lw	         0000011   010       immediate
 //   sw           0100011   010       immediate
 //   jal          1101111   immediate immediate
+
+//   blt          1100011   100       immediate
 
 module testbench();
 
@@ -105,7 +107,7 @@ module testbench();
   always @(negedge clk)
     begin
       if(MemWrite) begin
-        if(DataAdr === 100 & WriteData === 25) begin
+        if(DataAdr === 104 & WriteData === 25) begin
           $display("Simulation succeeded");
           $stop;
         end else if (DataAdr !== 96) begin
@@ -136,18 +138,18 @@ module riscvsingle(input  logic        clk, reset,
                    output logic [31:0] ALUResult, WriteData,
                    input  logic [31:0] ReadData);
 
-  logic       ALUSrc, RegWrite, Jump, Zero;
+  logic       ALUSrc, RegWrite, Jump, Zero, Less;
   logic [1:0] ResultSrc, ImmSrc;
   logic [2:0] ALUControl;
 
-  controller c(Instr[6:0], Instr[14:12], Instr[30], Zero,
+  controller c(Instr[6:0], Instr[14:12], Instr[30], Zero, Less,
                ResultSrc, MemWrite, PCSrc,
                ALUSrc, RegWrite, Jump,
                ImmSrc, ALUControl);
   datapath dp(clk, reset, ResultSrc, PCSrc,
               ALUSrc, RegWrite,
               ImmSrc, ALUControl,
-              Zero, PC, Instr,
+              Zero, Less, PC, Instr,
               ALUResult, WriteData, ReadData);
 endmodule
 
@@ -155,6 +157,7 @@ module controller(input  logic [6:0] op,
                   input  logic [2:0] funct3,
                   input  logic       funct7b5,
                   input  logic       Zero,
+                  input  logic       Less,						
                   output logic [1:0] ResultSrc,
                   output logic       MemWrite,
                   output logic       PCSrc, ALUSrc,
@@ -164,12 +167,24 @@ module controller(input  logic [6:0] op,
 
   logic [1:0] ALUOp;
   logic       Branch;
+  logic       Buff;
 
   maindec md(op, ResultSrc, MemWrite, Branch,
              ALUSrc, RegWrite, Jump, ImmSrc, ALUOp);
   aludec  ad(op[5], funct3, funct7b5, ALUOp, ALUControl);
 
-  assign PCSrc = Branch & Zero | Jump;
+  always_comb
+      case (op)
+      7'b1100011:
+        case (funct3)
+         3'b100:  Buff = (Branch & Less);
+         3'b000:  Buff = (Branch & Zero);
+         default: Buff = 0;
+        endcase
+        default: Buff = 0;
+      endcase
+  
+  assign PCSrc = Buff | Jump;
 endmodule
 
 module maindec(input  logic [6:0] op,
@@ -231,6 +246,7 @@ module datapath(input  logic        clk, reset,
                 input  logic [1:0]  ImmSrc,
                 input  logic [2:0]  ALUControl,
                 output logic        Zero,
+                output logic        Less,
                 output logic [31:0] PC,
                 input  logic [31:0] Instr,
                 output logic [31:0] ALUResult, WriteData,
@@ -254,7 +270,7 @@ module datapath(input  logic        clk, reset,
 
   // ALU logic
   mux2 #(32)  srcbmux(WriteData, ImmExt, ALUSrc, SrcB);
-  alu         alu(SrcA, SrcB, ALUControl, ALUResult, Zero);
+  alu         alu(SrcA, SrcB, ALUControl, ALUResult, Zero, Less);
   mux3 #(32)  resultmux(ALUResult, ReadData, PCPlus4, ResultSrc, Result);
 endmodule
 
@@ -351,10 +367,11 @@ module dmem(input  logic        clk, we,
     if (we) RAM[a[31:2]] <= wd;
 endmodule
 
-module alu(input  logic [31:0] a, b,
+module alu(input  logic signed [31:0] a, b,
            input  logic [2:0]  alucontrol,
-           output logic [31:0] result,
-           output logic        zero);
+           output logic signed [31:0] result,
+           output logic        zero,
+			  output logic        less);
 
   logic [31:0] condinvb, sum;
   logic        v;              // overflow
@@ -379,6 +396,7 @@ module alu(input  logic [31:0] a, b,
     endcase
 
   assign zero = (result == 32'b0);
+  assign less = (result < 0);
   assign v = ~(alucontrol[0] ^ a[31] ^ b[31]) & (a[31] ^ sum[31]) & isAddSub;
   
 endmodule
