@@ -1,2 +1,9 @@
-1.
-2.
+1.jki, kji
+2.ikj, kij
+ijk:	n = 1000, 1.506 Gflop/s
+ikj:	n = 1000, 1.064 Gflop/s
+jik:	n = 1000, 1.525 Gflop/s
+jki:	n = 1000, 9.971 Gflop/s
+kij:	n = 1000, 1.121 Gflop/s
+kji:	n = 1000, 6.507 Gflop/s
+
